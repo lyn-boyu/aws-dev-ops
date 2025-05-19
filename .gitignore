@@ -180,3 +180,24 @@ cython_debug/
 *.key
 *.crt
 ec2-ip.txt
+
+
+# === Terraform local state and backups ===
+*.tfstate
+*.tfstate.backup
+
+# Terraform crash logs
+crash.log
+
+# Terraform plan files
+*.tfplan
+
+# Terraform variable overrides
+# terraform.tfvars
+*.auto.tfvars
+
+# Local .terraform dir (provider plugins, modules, cache)
+.terraform/
+
+# Sensitive shell environment files
+.env
