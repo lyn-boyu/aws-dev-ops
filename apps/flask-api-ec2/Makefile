@@ -15,14 +15,14 @@ generate-key:
 create-ec2:
 	KEY_NAME=$(KEY_NAME) IP_FILE=$(IP_FILE) bash deploy/create-ec2.script.sh
 
-# Build Docker image for Flask API
-build-docker:
-	docker build -t $(DOCKER_APP_NAME) -f deploy/Dockerfile app
-
 # Build, push Docker image and deploy Flask API to EC2
 deploy:
 	DOCKER_APP_NAME=$(DOCKER_APP_NAME) REGION=$(REGION) KEY_NAME=$(KEY_NAME) IP_FILE=$(IP_FILE) bash deploy/deploy-flask-app.script.sh
 
 # Terminate EC2 instance
 destroy:
-	DOCKER_APP_NAME=$(DOCKER_APP_NAME) REGION=$(REGION) IP_FILE=$(IP_FILE) bash deploy/terminate-ec2.script.sh
+	DOCKER_APP_NAME=$(DOCKER_APP_NAME) REGION=$(REGION) IP_FILE=$(IP_FILE) bash deploy/destroy-ec2.script.sh
+
+# Build Docker image for Flask API
+build-docker:
+	docker build -t $(DOCKER_APP_NAME) -f deploy/Dockerfile app

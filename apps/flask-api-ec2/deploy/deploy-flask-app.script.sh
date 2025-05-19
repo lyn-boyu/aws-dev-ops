@@ -58,7 +58,7 @@ echo "🚀 Deploying to EC2 instance at $EC2_IP ..."
 ssh  -o StrictHostKeyChecking=no -i "$KEY_PATH" "$EC2_USER@$EC2_IP" <<EOF
  set -euxo pipefail
 
-  # 1. 安装 Docker
+  # 1.1 安装 Docker
   if ! command -v docker >/dev/null 2>&1; then
     echo "📦 Installing Docker..."
     sudo apt update -y
@@ -71,7 +71,7 @@ ssh  -o StrictHostKeyChecking=no -i "$KEY_PATH" "$EC2_USER@$EC2_IP" <<EOF
     echo "✅ Docker already installed."
   fi
 
-  # 2. 安装 AWS CLI（如未安装）
+  # 1.2 安装 AWS CLI（如未安装）
   if ! command -v aws >/dev/null 2>&1; then
     echo "📦 Installing AWS CLI..."
     sudo apt update -y
@@ -80,8 +80,9 @@ ssh  -o StrictHostKeyChecking=no -i "$KEY_PATH" "$EC2_USER@$EC2_IP" <<EOF
     echo "✅ AWS CLI already installed."
   fi
 
+  # 2.1 登录 ECR
   aws ecr get-login-password --region $REGION \
-| sudo docker login --username AWS --password-stdin $ECR_REPO
+  | sudo docker login --username AWS --password-stdin $ECR_REPO
 
   # 3. 拉取镜像并运行容器
   echo "🐳 Pulling container..."
