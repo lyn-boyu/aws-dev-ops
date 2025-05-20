@@ -1,5 +1,5 @@
 # ------------------------------------------------------------------------------
-# Availability Zones
+# 1. Availability Zones
 # Get list of available AZs in the selected AWS region
 # ------------------------------------------------------------------------------
 
@@ -7,68 +7,46 @@ data "aws_availability_zones" "available" {
   state = "available"
 }
 
-# Lookup default VPC for this region
-data "aws_vpc" "default" {
-  default = true
-}
-
-# Lookup public subnets in the default VPC
-data "aws_subnets" "public" {
-  filter {
-    name   = "vpc-id"
-    values = [aws_vpc.main.id]
-  }
-}
-
 # ------------------------------------------------------------------------------
-# VPC (Virtual Private Cloud)
+# 2. VPC (Virtual Private Cloud)
 # The main virtual network for all ECS/Fargate resources
 # ------------------------------------------------------------------------------
 
 resource "aws_vpc" "main" {
-  cidr_block           = "10.0.0.0/16"          # Entire VPC CIDR block
-  enable_dns_support   = true                   # Enable internal DNS resolution
-  enable_dns_hostnames = true                   # Required for ECS hostnames
-
+  cidr_block           = "10.0.0.0/16"
+  enable_dns_support   = true
+  enable_dns_hostnames = true
   tags = {
     Name = "${var.project}-${var.env}-vpc"
   }
 }
 
+
 # ------------------------------------------------------------------------------
-# Internet Gateway
+# 3. Internet Gateway
 # Required for public subnets to access the Internet
 # ------------------------------------------------------------------------------
-
 resource "aws_internet_gateway" "gw" {
   vpc_id = aws_vpc.main.id
-
   tags = {
     Name = "${var.project}-${var.env}-igw"
   }
 }
 
 # ------------------------------------------------------------------------------
-# Public Subnet A (AZ 0)
+# 4. Public Subnet A (AZ 0)
 # Used for ECS services and ALB in one availability zone
 # ------------------------------------------------------------------------------
 
 resource "aws_subnet" "public_a" {
   vpc_id                  = aws_vpc.main.id
-  cidr_block              = "10.0.1.0/24"                             # Subnet range
+  cidr_block              = "10.0.1.0/24"
   availability_zone       = data.aws_availability_zones.available.names[0]
-  map_public_ip_on_launch = true                                     # Auto-assign public IP
-
+  map_public_ip_on_launch = true
   tags = {
-    Name = "${var.project}-${var.env}-subnet-a"
+    Name = "${var.project}-${var.env}-public-a"
   }
 }
-
-# ------------------------------------------------------------------------------
-# Public Subnet B (AZ 1)
-# Used for ECS services and ALB in another availability zone
-# ------------------------------------------------------------------------------
-
 resource "aws_subnet" "public_b" {
   vpc_id                  = aws_vpc.main.id
   cidr_block              = "10.0.2.0/24"
@@ -76,42 +54,105 @@ resource "aws_subnet" "public_b" {
   map_public_ip_on_launch = true
 
   tags = {
-    Name = "${var.project}-${var.env}-subnet-b"
+    Name = "${var.project}-${var.env}-public-b"
   }
 }
 
 # ------------------------------------------------------------------------------
-# Public Route Table
+# 5. Private Subnet B (AZ 1)
+# Used for ECS services and ALB in another availability zone
+# ------------------------------------------------------------------------------
+resource "aws_subnet" "private_a" {
+  vpc_id                  = aws_vpc.main.id
+  cidr_block              = "10.0.3.0/24"
+  availability_zone       = data.aws_availability_zones.available.names[0]
+  map_public_ip_on_launch = false
+  tags = {
+    Name = "${var.project}-${var.env}-private-a"
+  }
+}
+
+resource "aws_subnet" "private_b" {
+  vpc_id                  = aws_vpc.main.id
+  cidr_block              = "10.0.4.0/24"
+  availability_zone       = data.aws_availability_zones.available.names[1]
+  map_public_ip_on_launch = false
+  tags = {
+    Name = "${var.project}-${var.env}-private-b"
+  }
+}
+
+# ------------------------------------------------------------------------------
+# 6. NAT Gateway
+# ------------------------------------------------------------------------------
+resource "aws_eip" "nat_eip" {
+  vpc = true
+  tags = {
+    Name = "${var.project}-${var.env}-nat-eip"
+  }
+}
+
+resource "aws_nat_gateway" "nat" {
+  allocation_id = aws_eip.nat_eip.id
+  subnet_id     = aws_subnet.public_a.id
+  tags = {
+    Name = "${var.project}-${var.env}-nat"
+  }
+}
+
+# ------------------------------------------------------------------------------
+# 7. Public Route Table 路由表 - 公共（IGW）
 # Allows instances in public subnets to route traffic to Internet via IGW
 # ------------------------------------------------------------------------------
-
 resource "aws_route_table" "public" {
   vpc_id = aws_vpc.main.id
-
   route {
-    cidr_block = "0.0.0.0/0"                   # Route all traffic
-    gateway_id = aws_internet_gateway.gw.id   # To the internet gateway
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.gw.id
   }
-
   tags = {
-    Name = "${var.project}-${var.env}-rt"
+    Name = "${var.project}-${var.env}-public-rt"
   }
 }
-
-# Associate Subnet A with Public Route Table
-resource "aws_route_table_association" "a" {
+# 关联一个路由表：
+resource "aws_route_table_association" "public_a" {
   subnet_id      = aws_subnet.public_a.id
   route_table_id = aws_route_table.public.id
 }
 
-# Associate Subnet B with Public Route Table
-resource "aws_route_table_association" "b" {
+resource "aws_route_table_association" "public_b" {
   subnet_id      = aws_subnet.public_b.id
   route_table_id = aws_route_table.public.id
 }
 
 # ------------------------------------------------------------------------------
-# Security Group for ECS Service
+# 8. Public Route Table - Private (NAT)
+#  路由表 - 私有（NAT）
+# ------------------------------------------------------------------------------
+resource "aws_route_table" "private" {
+  vpc_id = aws_vpc.main.id
+  route {
+    cidr_block     = "0.0.0.0/0"
+    nat_gateway_id = aws_nat_gateway.nat.id
+  }
+  tags = {
+    Name = "${var.project}-${var.env}-private-rt"
+  }
+}
+
+resource "aws_route_table_association" "private_a" {
+  subnet_id      = aws_subnet.private_a.id
+  route_table_id = aws_route_table.private.id
+}
+
+resource "aws_route_table_association" "private_b" {
+  subnet_id      = aws_subnet.private_b.id
+  route_table_id = aws_route_table.private.id
+}
+
+
+# ------------------------------------------------------------------------------
+# 9. Security Group for ECS Service
 # Allows inbound access on port 5000 (Flask) from any IP
 # ------------------------------------------------------------------------------
 

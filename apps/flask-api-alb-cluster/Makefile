@@ -129,6 +129,20 @@ ecs-list-tasks:
 		--service-name $$(terraform -chdir=terraform output -raw ecs_service_name) \
 		--region $(REGION)
 
+
+REGION ?= us-west-1
+
+
+# Describe  target task (first in list)
+# eg： make checkTask task=arn:aws:ecs:us-west-1:257288818401:task/flask-alb-ecs-api-dev-cluster/4741de94da494e8db27958df4f34d988
+checkTask:
+	@CLUSTER=$$(terraform -chdir=terraform output -raw ecs_cluster_name | tr -d '\r\n'); \
+	echo "Cluster: $$CLUSTER"; \
+	aws ecs describe-tasks \
+		--cluster $$CLUSTER \
+		--tasks $(task) \
+		--region $(REGION) --output table
+
 # Describe most recent task (first in list)
 ecs-describe-task:
 	@task=$$(aws ecs list-tasks \
@@ -143,8 +157,6 @@ ecs-describe-task:
 		--tasks $$task \
 		--region $(REGION) \
 		--output json | jq '.tasks[0] | {taskArn, lastStatus, stoppedReason}'
-
-
 
  
 		

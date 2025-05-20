@@ -20,12 +20,14 @@ resource "aws_ecs_service" "app" {
 
   # Each Fargate task must run in its own ENI, inside a VPC subnet with security group
   network_configuration {
-    subnets = [
-      aws_subnet.public_a.id,
-      aws_subnet.public_b.id
+   subnets = [
+      aws_subnet.private_a.id,
+      aws_subnet.private_b.id
     ]
 
-    assign_public_ip = true                                   # Auto-assign a public IP for internet access
+    assign_public_ip = false  # 🚫 不分配公网 IP（通过 NAT 出网）
+
+    # assign_public_ip = true                                   # Auto-assign a public IP for internet access
 
     security_groups = [
       aws_security_group.ecs.id                               # Allow port 5000 access (from network.tf)

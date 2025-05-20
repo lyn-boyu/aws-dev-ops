@@ -6,7 +6,10 @@
 resource "aws_lb" "app" {
   name               = "${var.project}-${var.env}-alb"
   load_balancer_type = "application"
-  subnets            = data.aws_subnets.public.ids
+  subnets            = [
+    aws_subnet.public_a.id,
+    aws_subnet.public_b.id
+  ]
   security_groups    = [aws_security_group.alb.id]
 }
 
