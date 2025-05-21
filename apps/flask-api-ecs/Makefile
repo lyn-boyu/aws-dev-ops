@@ -1,5 +1,7 @@
 .PHONY: build cluster register run network clean deploy-all
 
+network:
+	bash deploy/create-vpc-and-subnet.sh
 
 build:
 	bash deploy/build-and-push-ecr.sh
@@ -13,14 +15,12 @@ register:
 run:
 	bash deploy/run-service.sh
 
-network:
-	bash deploy/create-vpc-and-subnet.sh
-
 ip:
 	bash deploy/get-task-ip.sh
 
 clean:
 	rm -f .env
+
 
 destroy:
 	bash deploy/destroy-ecs-service.sh
